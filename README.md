@@ -77,6 +77,10 @@ SSH 登录服务器后，直接复制粘贴下面这一条命令即可：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TGap-Ruo/SafeStudy/main/deploy.sh | sudo bash
+
+#国内服务器
+curl -fsSL https://gitee.com/tgap/safe-study/raw/main/deploy.sh | sudo bash
+
 ```
 
 脚本会实时从公开仓库拉取代码并完成环境安装、服务注册与启动。整个过程无需在服务器上预先准备任何文件，适合全新服务器或重装后快速恢复。
