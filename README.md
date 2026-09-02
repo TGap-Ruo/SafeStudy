@@ -67,20 +67,36 @@
 
 ## 快速部署（云端拉取，推荐）
 
-将本项目代码推送到 GitHub 仓库后（示例 `TGap-Ruo/SafeStudy`），在服务器上执行 `deploy.sh` 即可完成全部部署：
+将本项目代码推送到 GitHub 仓库后（示例 `TGap-Ruo/SafeStudy`），在服务器上执行 `deploy.sh` 即可完成全部部署。
 
 **环境依赖安装**（Python venv、Chrome、防火墙等）**、代码拉取、服务注册与启动全部自动完成。**
 
-### 1. 把脚本上传到服务器
+### 1. 服务器上一条命令部署（最快）
+
+SSH 登录服务器后，直接复制粘贴下面这一条命令即可：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TGap-Ruo/SafeStudy/main/deploy.sh | sudo bash
+```
+
+脚本会实时从公开仓库拉取代码并完成环境安装、服务注册与启动。整个过程无需在服务器上预先准备任何文件，适合全新服务器或重装后快速恢复。
+
+> 前提：仓库保持**公开**且已推送最新代码（含 `deploy.sh`）。如 GitHub 连接较慢，可改用方式二先下载脚本再本地执行。
+
+如果想把脚本保存到服务器上（方便以后重复执行做更新）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TGap-Ruo/SafeStudy/main/deploy.sh -o /root/deploy.sh
+sudo bash /root/deploy.sh
+```
+
+### 2. 上传脚本后部署（通用）
 
 ```bash
 # 在本机执行（把 IP 换成你的服务器）
 scp deploy.sh root@你的服务器IP:/root/
-```
 
-### 2. 执行部署
-
-```bash
+# 再登录服务器执行
 ssh root@你的服务器IP
 sudo bash /root/deploy.sh
 ```
