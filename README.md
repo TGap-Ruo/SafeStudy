@@ -121,6 +121,7 @@ SKIP_INSTALL=1 sudo -E bash /root/deploy.sh
 | `REPO` | `tgap/safe-study` | 仓库地址（owner/name） |
 | `BRANCH` | `main` | 拉取分支 |
 | `APP_DIR` | `/www/wwwroot/weban-web` | 安装目录 |
+| `PIP_INDEX` | `https://pypi.tuna.tsinghua.edu.cn/simple` | pip 镜像源（国内服务器默认清华） |
 | `SKIP_INSTALL` | `0` | 设为 `1` 跳过系统依赖/Chrome 安装 |
 
 ---

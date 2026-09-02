@@ -16,6 +16,7 @@
 #   REPO      仓库地址，默认 tgap/safe-study
 #   BRANCH    分支，默认 main
 #   APP_DIR   安装目录，默认 /www/wwwroot/weban-web（会保留已有 logs/tasks.json）
+#   PIP_INDEX  pip 镜像源，默认清华 PyPI（国内服务器必用）
 #   SKIP_INSTALL=1  跳过系统依赖/Chrome 安装，只更新代码并重启服务
 # =============================================================
 set -euo pipefail
@@ -27,6 +28,7 @@ GIT_HOST="${GIT_HOST:-gitee}"
 BRANCH="${BRANCH:-main}"
 APP_DIR="${APP_DIR:-/www/wwwroot/weban-web}"
 SKIP_INSTALL="${SKIP_INSTALL:-0}"
+PIP_INDEX="${PIP_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}"
 
 GREEN=$'\033[32m'; RED=$'\033[31m'; YELLOW=$'\033[33m'; NC=$'\033[0m'
 info()  { echo -e "${GREEN}[信息]${NC} $*"; }
@@ -133,8 +135,8 @@ if [ ! -x "$APP_DIR/venv/bin/python3" ]; then
     python3 -m venv "$APP_DIR/venv"
 fi
 info "安装 Python 依赖..."
-"$APP_DIR/venv/bin/pip" install -q --upgrade pip
-"$APP_DIR/venv/bin/pip" install -q -r "$APP_DIR/requirements.txt"
+"$APP_DIR/venv/bin/pip" install -q --upgrade pip -i "$PIP_INDEX"
+"$APP_DIR/venv/bin/pip" install -q -r "$APP_DIR/requirements.txt" -i "$PIP_INDEX"
 
 # ── 5. systemd 服务：Chrome CDP + Web 服务 ──────────────────
 if [ -f "$APP_DIR/cdp-chrome.sh" ]; then
