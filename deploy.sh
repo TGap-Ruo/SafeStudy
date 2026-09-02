@@ -7,9 +7,7 @@
 #
 # 用法：
 #   sudo bash deploy.sh
-#     仓库为公开时可直接运行；为私有时脚本会提示输入 GitHub Token
-#   GITHUB_TOKEN=ghp_xxxxxxxx sudo -E bash deploy.sh
-#     推荐：私有仓库用 Token 自动克隆（Token 只在本机内存中，不写入文件）
+#     从公开 GitHub 仓库下载代码并完成部署；重复执行 = 更新项目
 #
 # 可选环境变量：
 #   REPO      仓库地址，默认 TGap-Ruo/SafeStudy
@@ -24,7 +22,6 @@ export DEBIAN_FRONTEND=noninteractive
 REPO="${REPO:-TGap-Ruo/SafeStudy}"
 BRANCH="${BRANCH:-main}"
 APP_DIR="${APP_DIR:-/www/wwwroot/weban-web}"
-GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 SKIP_INSTALL="${SKIP_INSTALL:-0}"
 
 GREEN=$'\033[32m'; RED=$'\033[31m'; YELLOW=$'\033[33m'; NC=$'\033[0m'
@@ -54,7 +51,7 @@ install_system_deps() {
     apt-get update -y -q
     apt-get install -y -q \
         python3 python3-venv python3-pip \
-        wget unzip curl git rsync ca-certificates
+        wget unzip curl rsync ca-certificates
 
     if command -v google-chrome-stable >/dev/null 2>&1; then
         info "Google Chrome 已安装：$(google-chrome-stable --version)"
@@ -70,41 +67,18 @@ install_system_deps() {
 
 [ "$SKIP_INSTALL" = "1" ] || install_system_deps
 
-# ── 2. 获取源码（私有仓库用 Token） ──────────────────────────
+# ── 2. 从公开仓库下载源码 ────────────────────────────────────
 SRC_DIR="$TMP_ROOT/src"
 mkdir -p "$SRC_DIR"
 
-clone_repo() {
-    info "使用 GitHub Token 克隆私有仓库 $REPO ..."
-    git clone --depth 1 -b "$BRANCH" \
-        "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git" \
-        "$SRC_DIR/repo"
-}
-
-if [ -n "$GITHUB_TOKEN" ]; then
-    clone_repo || { err "克隆失败：请检查 Token 是否有效、是否有该仓库访问权限"; exit 1; }
-else
-    info "尝试公开下载: https://github.com/$REPO/archive/refs/heads/$BRANCH.zip"
-    if wget -q --timeout=30 -O "$SRC_DIR/repo.zip" \
-            "https://github.com/$REPO/archive/refs/heads/$BRANCH.zip" \
-        && unzip -q -o "$SRC_DIR/repo.zip" -d "$SRC_DIR"; then
-        info "公开下载成功"
-    else
-        # 公开下载失败（仓库不存在或为私有）→ 交互输入 Token 重试
-        if [ -t 0 ]; then
-            warn "仓库不存在或为私有仓库，需要 GitHub Token"
-            read -rsp "请输入 GitHub Token（输入不回显，也不写入任何文件）: " GITHUB_TOKEN
-            echo
-        fi
-        if [ -n "$GITHUB_TOKEN" ]; then
-            clone_repo || { err "克隆失败：Token 无效或无权访问"; exit 1; }
-        else
-            err "下载失败。可先把仓库设为公开，或用以下命令带 Token 重试："
-            err "  GITHUB_TOKEN=ghp_xxxxxxxx sudo -E bash deploy.sh"
-            exit 1
-        fi
-    fi
+info "从 GitHub 下载源码: https://github.com/$REPO/archive/refs/heads/$BRANCH.zip"
+if ! wget -q --timeout=60 -O "$SRC_DIR/repo.zip" \
+        "https://github.com/$REPO/archive/refs/heads/$BRANCH.zip" \
+    || ! unzip -q -o "$SRC_DIR/repo.zip" -d "$SRC_DIR"; then
+    err "下载失败：请确认仓库 $REPO 为公开且分支 $BRANCH 存在"
+    exit 1
 fi
+info "源码下载成功"
 
 # 定位项目根目录（兼容 zip 外层多一级目录，如 SafeStudy-main/）
 PROJECT_ROOT=""

@@ -22,7 +22,7 @@
 - 🛑 任务管理：运行状态、停止、删除
 - 📊 任务统计：运行中 / 已完成 / 失败 数量一目了然
 - 🔁 systemd 常驻 + 开机自启，崩溃自动重启
-- 🚀 云端一键部署脚本，支持私有仓库（GitHub Token）
+- 🚀 从 GitHub 公开仓库云端一键部署，一条命令完成
 
 ---
 
@@ -78,30 +78,19 @@
 scp deploy.sh root@你的服务器IP:/root/
 ```
 
-### 2. 仓库为公开时（最简单）
+### 2. 执行部署
 
 ```bash
 ssh root@你的服务器IP
 sudo bash /root/deploy.sh
 ```
 
-### 3. 仓库为私有时（GitHub Token）
-
-生成 Token：GitHub → `Settings` → `Developer settings` → `Personal access tokens` → `Fine-grained tokens`，`Repository access` 勾选本项目仓库，权限给 `Contents: Read`。
-
-```bash
-ssh root@你的服务器IP
-GITHUB_TOKEN=ghp_xxxxxxxx sudo -E bash /root/deploy.sh
-```
-
-> Token 仅在脚本进程内存中使用，不会写入服务器文件；部署失败会提示重新检查 Token。
-
-### 4. 部署脚本做了什么
+### 3. 部署脚本做了什么
 
 1. 检查 root 权限与服务器架构
-2. 安装系统依赖：`python3/venv/pip`、`wget`、`unzip`、`curl`、`git`、`rsync`
+2. 安装系统依赖：`python3/venv/pip`、`wget`、`unzip`、`curl`、`rsync`
 3. 未安装时自动下载安装 Google Chrome 官方 deb
-4. 从 GitHub 克隆仓库（私有仓库用 Token）
+4. 从 GitHub 公开仓库下载源码
 5. 同步代码到 `/www/wwwroot/weban-web`（**自动保留**已有的 `logs/`、`tasks.json`、`venv/`）
 6. 创建 Python 虚拟环境并安装依赖
 7. 注册并启动两个 systemd 服务（均开机自启）：
@@ -110,12 +99,12 @@ GITHUB_TOKEN=ghp_xxxxxxxx sudo -E bash /root/deploy.sh
 8. 防火墙放行 `5000/tcp`
 9. 健康检查并打印访问地址
 
-### 5. 部署选项（环境变量）
+### 4. 部署选项（环境变量）
 
 ```bash
 # 示例：自定义仓库、分支、安装目录，跳过系统依赖安装
 REPO=TGap-Ruo/SafeStudy BRANCH=main APP_DIR=/www/wwwroot/weban-web \
-SKIP_INSTALL=1 GITHUB_TOKEN=ghp_xxx sudo -E bash /root/deploy.sh
+SKIP_INSTALL=1 sudo -E bash /root/deploy.sh
 ```
 
 | 变量 | 默认值 | 说明 |
@@ -123,7 +112,6 @@ SKIP_INSTALL=1 GITHUB_TOKEN=ghp_xxx sudo -E bash /root/deploy.sh
 | `REPO` | `TGap-Ruo/SafeStudy` | GitHub 仓库（owner/name） |
 | `BRANCH` | `main` | 拉取分支 |
 | `APP_DIR` | `/www/wwwroot/weban-web` | 安装目录 |
-| `GITHUB_TOKEN` | 空 | 私有仓库访问 Token |
 | `SKIP_INSTALL` | `0` | 设为 `1` 跳过系统依赖/Chrome 安装 |
 
 ---
@@ -259,16 +247,10 @@ ufw allow 80,443/tcp
 
 ## 更新项目
 
-仓库公开后，重新运行部署脚本即可（自动拉取最新代码、重启服务、保留数据）：
+重新运行部署脚本即可（自动拉取最新代码、重启服务、保留数据）：
 
 ```bash
 sudo bash /root/deploy.sh
-```
-
-私有仓库阶段：
-
-```bash
-GITHUB_TOKEN=ghp_xxx sudo -E bash /root/deploy.sh
 ```
 
 手动部署用户可参考 `DEPLOY.md` 或用以下方式：
