@@ -22,7 +22,7 @@
 - 🛑 任务管理：运行状态、停止、删除
 - 📊 任务统计：运行中 / 已完成 / 失败 数量一目了然
 - 🔁 systemd 常驻 + 开机自启，崩溃自动重启
-- 🚀 从 GitHub 公开仓库云端一键部署，一条命令完成
+- 🚀 GitHub / Gitee 云端一键部署，一条命令完成（国内推荐 Gitee）
 
 ---
 
@@ -67,7 +67,7 @@
 
 ## 快速部署（云端拉取，推荐）
 
-将本项目代码推送到 GitHub 仓库后（示例 `TGap-Ruo/SafeStudy`），在服务器上执行 `deploy.sh` 即可完成全部部署。
+将本项目代码推送到 GitHub（`TGap-Ruo/SafeStudy`）与 Gitee 镜像（`tgap/safe-study`）后，在服务器上执行 `deploy.sh` 即可完成全部部署。国内服务器会自动从 Gitee 拉取，海外/能直连 GitHub 时可切换到 GitHub 源。
 
 **环境依赖安装**（Python venv、Chrome、防火墙等）**、代码拉取、服务注册与启动全部自动完成。**
 
@@ -80,18 +80,6 @@ curl -fsSL https://raw.githubusercontent.com/TGap-Ruo/SafeStudy/main/deploy.sh |
 
 #国内服务器
 curl -fsSL https://gitee.com/tgap/safe-study/raw/main/deploy.sh | sudo bash
-
-```
-
-脚本会实时从公开仓库拉取代码并完成环境安装、服务注册与启动。整个过程无需在服务器上预先准备任何文件，适合全新服务器或重装后快速恢复。
-
-> 前提：仓库保持**公开**且已推送最新代码（含 `deploy.sh`）。如 GitHub 连接较慢，可改用方式二先下载脚本再本地执行。
-
-如果想把脚本保存到服务器上（方便以后重复执行做更新）：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/TGap-Ruo/SafeStudy/main/deploy.sh -o /root/deploy.sh
-sudo bash /root/deploy.sh
 ```
 
 ### 2. 上传脚本后部署（通用）
@@ -110,7 +98,7 @@ sudo bash /root/deploy.sh
 1. 检查 root 权限与服务器架构
 2. 安装系统依赖：`python3/venv/pip`、`wget`、`unzip`、`curl`、`rsync`
 3. 未安装时自动下载安装 Google Chrome 官方 deb
-4. 从 GitHub 公开仓库下载源码
+4. 从 Gitee（默认）/ GitHub 下载源码
 5. 同步代码到 `/www/wwwroot/weban-web`（**自动保留**已有的 `logs/`、`tasks.json`、`venv/`）
 6. 创建 Python 虚拟环境并安装依赖
 7. 注册并启动两个 systemd 服务（均开机自启）：
@@ -123,13 +111,14 @@ sudo bash /root/deploy.sh
 
 ```bash
 # 示例：自定义仓库、分支、安装目录，跳过系统依赖安装
-REPO=TGap-Ruo/SafeStudy BRANCH=main APP_DIR=/www/wwwroot/weban-web \
+GIT_HOST=gitee REPO=tgap/safe-study BRANCH=main APP_DIR=/www/wwwroot/weban-web \
 SKIP_INSTALL=1 sudo -E bash /root/deploy.sh
 ```
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `REPO` | `TGap-Ruo/SafeStudy` | GitHub 仓库（owner/name） |
+| `GIT_HOST` | `gitee` | 代码源平台：`gitee` / `github` |
+| `REPO` | `tgap/safe-study` | 仓库地址（owner/name） |
 | `BRANCH` | `main` | 拉取分支 |
 | `APP_DIR` | `/www/wwwroot/weban-web` | 安装目录 |
 | `SKIP_INSTALL` | `0` | 设为 `1` 跳过系统依赖/Chrome 安装 |

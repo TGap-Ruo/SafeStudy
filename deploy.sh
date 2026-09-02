@@ -7,10 +7,13 @@
 #
 # 用法：
 #   sudo bash deploy.sh
-#     从公开 GitHub 仓库下载代码并完成部署；重复执行 = 更新项目
+#     默认从 Gitee 镜像仓库下载代码并完成部署；重复执行 = 更新项目
+#     国内服务器推荐 Gitee；如需走 GitHub：
+#       GIT_HOST=github REPO=TGap-Ruo/SafeStudy sudo -E bash deploy.sh
 #
 # 可选环境变量：
-#   REPO      仓库地址，默认 TGap-Ruo/SafeStudy
+#   GIT_HOST  代码源，默认 gitee（可选 github）
+#   REPO      仓库地址，默认 tgap/safe-study
 #   BRANCH    分支，默认 main
 #   APP_DIR   安装目录，默认 /www/wwwroot/weban-web（会保留已有 logs/tasks.json）
 #   SKIP_INSTALL=1  跳过系统依赖/Chrome 安装，只更新代码并重启服务
@@ -19,7 +22,8 @@ set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 
-REPO="${REPO:-TGap-Ruo/SafeStudy}"
+REPO="${REPO:-tgap/safe-study}"
+GIT_HOST="${GIT_HOST:-gitee}"
 BRANCH="${BRANCH:-main}"
 APP_DIR="${APP_DIR:-/www/wwwroot/weban-web}"
 SKIP_INSTALL="${SKIP_INSTALL:-0}"
@@ -67,15 +71,20 @@ install_system_deps() {
 
 [ "$SKIP_INSTALL" = "1" ] || install_system_deps
 
-# ── 2. 从公开仓库下载源码 ────────────────────────────────────
+# ── 2. 下载源码（默认 Gitee，可用 GIT_HOST=github 切回 GitHub） ──
 SRC_DIR="$TMP_ROOT/src"
 mkdir -p "$SRC_DIR"
 
-info "从 GitHub 下载源码: https://github.com/$REPO/archive/refs/heads/$BRANCH.zip"
-if ! wget -q --timeout=60 -O "$SRC_DIR/repo.zip" \
-        "https://github.com/$REPO/archive/refs/heads/$BRANCH.zip" \
+case "$GIT_HOST" in
+    github) DOWNLOAD_URL="https://github.com/$REPO/archive/refs/heads/$BRANCH.zip" ;;
+    gitee)  DOWNLOAD_URL="https://gitee.com/$REPO/repository/archive/$BRANCH.zip" ;;
+    *) err "不支持的 GIT_HOST: $GIT_HOST（可选 gitee / github）"; exit 1 ;;
+esac
+
+info "从 $GIT_HOST 下载源码: $DOWNLOAD_URL"
+if ! wget -q --timeout=120 -O "$SRC_DIR/repo.zip" "$DOWNLOAD_URL" \
     || ! unzip -q -o "$SRC_DIR/repo.zip" -d "$SRC_DIR"; then
-    err "下载失败：请确认仓库 $REPO 为公开且分支 $BRANCH 存在"
+    err "下载失败：请确认仓库 $REPO 为公开、分支 $BRANCH 存在，且服务器可访问 $GIT_HOST"
     exit 1
 fi
 info "源码下载成功"
