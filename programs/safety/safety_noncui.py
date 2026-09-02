@@ -48,6 +48,27 @@ def find_school_id(school_keyword: str) -> str:
     return s["id"]
 
 
+def get_submit_score(resp_text: str) -> int:
+    """解析提交考试接口的响应，返回得分。
+
+    平台异常时 data 字段可能不是字典（例如返回错误提示字符串），
+    这里统一校验并打印平台完整响应，避免裸 TypeError。
+    """
+    try:
+        res = json.loads(resp_text)
+    except (json.JSONDecodeError, TypeError) as e:
+        print(f"[错误] 提交考试返回非 JSON 响应（可能登录失效或平台变更）: {e}", flush=True)
+        print(f"[错误] 原始响应: {resp_text[:500]}", flush=True)
+        sys.exit(1)
+
+    data = res.get("data")
+    if not isinstance(data, dict) or "count" not in data:
+        print(f"[错误] 提交考试未返回得分，平台响应: {json.dumps(res, ensure_ascii=False)}", flush=True)
+        print("[提示] 常见原因：考试次数已用完 / 尚未完成全部课程 / 登录状态失效 / 平台接口变更", flush=True)
+        sys.exit(1)
+    return int(data["count"])
+
+
 def main():
     parser = argparse.ArgumentParser(description="江苏安全平台一键完成（非交互版）")
     parser.add_argument("--school", required=True, help="学校名称（支持关键词）")
@@ -154,11 +175,10 @@ def main():
 
     print("[信息] 答案已生成，正在提交考试...", flush=True)
     res = utils.imitateExam(exam_id, log_id, user_id, answers)
-    res = json.loads(res.text)
-    score = res["data"]["count"]
+    score = get_submit_score(res.text)
     print(f"[结果] 得分: {score}", flush=True)
 
-    if int(score) != 100:
+    if score != 100:
         print("[提示] 未到100分，可重新运行一次（题库历史遗留问题）", flush=True)
     else:
         print(f"[结果] 满分！结课证书: http://wap.xiaoyuananquantong.com/guns-vip-main/wap/qrCode?userId={user_id}", flush=True)
