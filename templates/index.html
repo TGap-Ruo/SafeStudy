@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动化任务管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a73e8, #4285f4);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 22px; font-weight: 600; }
+        .header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-body { padding: 20px; }
+        /* 表单样式 */
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26,115,232,0.1);
+        }
+        .program-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .program-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            background: white;
+        }
+        .program-tab.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+        .program-tab:hover:not(.active) { border-color: #1a73e8; color: #1a73e8; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+            width: 100%;
+        }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-danger { background: #ff4d4f; color: white; }
+        .btn-danger:hover { background: #d9363e; }
+        .btn-default { background: #f0f0f0; color: #333; }
+        .btn-default:hover { background: #e0e0e0; }
+        .btn-success { background: #52c41a; color: white; }
+        .btn-success:hover { background: #389e0d; }
+        /* 任务列表 */
+        .task-list { max-height: 500px; overflow-y: auto; }
+        .task-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .task-item:hover { background: #f8f9fa; }
+        .task-item.active { background: #e8f0fe; border-left: 3px solid #1a73e8; }
+        .task-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .task-program {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .task-program.weban { background: #e6f4ff; color: #1a73e8; }
+        .task-program.safety { background: #fff7e6; color: #fa8c16; }
+        .task-status {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .status-running { background: #e6f7ff; color: #1890ff; }
+        .status-finished { background: #f6ffed; color: #52c41a; }
+        .status-failed { background: #fff2f0; color: #ff4d4f; }
+        .status-stopped { background: #f5f5f5; color: #8c8c8c; }
+        .task-info { font-size: 13px; color: #555; line-height: 1.6; }
+        .task-info .school { font-weight: 500; color: #333; }
+        .task-time { font-size: 11px; color: #999; margin-top: 4px; }
+        .task-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+        /* 终端输出 */
+        .terminal-container {
+            background: #1e1e1e;
+            border-radius: 0 0 10px 10px;
+            height: 500px;
+            overflow-y: auto;
+            padding: 16px;
+            font-family: "Consolas", "Monaco", "Courier New", monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #d4d4d4;
+        }
+        .terminal-container::-webkit-scrollbar { width: 8px; }
+        .terminal-container::-webkit-scrollbar-track { background: #2d2d2d; }
+        .terminal-container::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        .terminal-line { white-space: pre-wrap; word-break: break-all; }
+        .terminal-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+            color: #666;
+            font-size: 14px;
+            background: #fafafa;
+        }
+        .output-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .auto-scroll-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+        }
+        .refresh-btn {
+            font-size: 12px;
+            color: #1a73e8;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .toast.success { background: #52c41a; }
+        .toast.error { background: #ff4d4f; }
+        .toast.info { background: #1a73e8; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .stats-bar {
+            display: flex;
+            gap: 16px;
+            padding: 12px 20px;
+            background: #fafafa;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        .stat-item { display: flex; align-items: center; gap: 6px; }
+        .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>自动化任务管理平台</h1>
+        <p>WeBan 安全微伴 / 江苏安全平台 - 多账号并发管理</p>
+    </div>
+
+    <div class="container">
+        <!-- 左侧：启动表单 + 任务列表 -->
+        <div>
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-header">启动新任务</div>
+                <div class="card-body">
+                    <div class="program-tabs">
+                        <div class="program-tab active" data-program="weban" onclick="selectProgram('weban')">
+                            WeBan 安全微伴
+                        </div>
+                        <div class="program-tab" data-program="safety" onclick="selectProgram('safety')">
+                            江苏安全平台
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label id="school-label">学校全称</label>
+                        <input type="text" id="school" placeholder="请输入学校名称" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>账号</label>
+                        <input type="text" id="username" placeholder="学号/账号" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="password" placeholder="密码" autocomplete="off">
+                    </div>
+                    <button class="btn btn-primary" id="startBtn" onclick="startTask()">
+                        启动任务
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    任务列表
+                    <button class="refresh-btn" onclick="loadTasks()">刷新</button>
+                </div>
+                <div class="stats-bar" id="statsBar">
+                    <div class="stat-item"><div class="stat-dot" style="background:#1890ff"></div>运行中: <span id="runningCount">0</span></div>
+                    <div class="stat-item"><div class="stat-dot" style="background:#52c41a"></div>已完成: <span id="finishedCount">0</span></div>
+                    <div class="stat-item"><div class="stat-dot" style="background:#ff4d4f"></div>失败: <span id="failedCount">0</span></div>
+                </div>
+                <div class="task-list" id="taskList">
+                    <div class="empty-state">暂无任务，启动一个吧</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：实时输出 -->
+        <div class="card">
+            <div class="card-header">
+                <span id="outputTitle">实时终端输出</span>
+                <div class="output-toolbar">
+                    <label class="auto-scroll-toggle">
+                        <input type="checkbox" id="autoScroll" checked> 自动滚动
+                    </label>
+                    <button class="btn btn-default btn-sm" onclick="clearOutput()">清空</button>
+                    <button class="btn btn-default btn-sm" id="downloadLogBtn" onclick="downloadLog()" style="display:none">下载日志</button>
+                </div>
+            </div>
+            <div id="terminalPlaceholder" class="terminal-placeholder">
+                选择左侧任务查看实时输出
+            </div>
+            <div class="terminal-container" id="terminal" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentProgram = 'weban';
+        let currentTaskId = null;
+        let eventSource = null;
+        let tasks = [];
+
+        function selectProgram(program) {
+            currentProgram = program;
+            document.querySelectorAll('.program-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.program === program);
+            });
+            const label = document.getElementById('school-label');
+            const input = document.getElementById('school');
+            if (program === 'weban') {
+                label.textContent = '学校全称';
+                input.placeholder = '请输入学校全称（如：XX大学）';
+            } else {
+                label.textContent = '学校名称';
+                input.placeholder = '请输入学校名称（支持关键词）';
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        async function startTask() {
+            const school = document.getElementById('school').value.trim();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!school) { showToast('请输入学校名称', 'error'); return; }
+            if (!username) { showToast('请输入账号', 'error'); return; }
+            if (!password) { showToast('请输入密码', 'error'); return; }
+
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.textContent = '启动中...';
+
+            try {
+                const resp = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ program: currentProgram, school, username, password })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    showToast('任务启动成功', 'success');
+                    document.getElementById('password').value = '';
+                    loadTasks();
+                    // 自动选中新任务
+                    setTimeout(() => selectTask(data.id), 300);
+                } else {
+                    showToast(data.error || '启动失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '启动任务';
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const resp = await fetch('/api/tasks?limit=50');
+                const data = await resp.json();
+                tasks = data.tasks;
+                renderTaskList();
+                updateStats();
+            } catch (e) {
+                console.error('加载任务失败', e);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('runningCount').textContent = tasks.filter(t => t.status === 'running').length;
+            document.getElementById('finishedCount').textContent = tasks.filter(t => t.status === 'finished').length;
+            document.getElementById('failedCount').textContent = tasks.filter(t => t.status === 'failed').length;
+        }
+
+        function renderTaskList() {
+            const list = document.getElementById('taskList');
+            if (tasks.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无任务，启动一个吧</div>';
+                return;
+            }
+            list.innerHTML = tasks.map(t => `
+                <div class="task-item ${t.id === currentTaskId ? 'active' : ''}" onclick="selectTask('${t.id}')">
+                    <div class="task-item-header">
+                        <span class="task-program ${t.program}">${t.program === 'weban' ? 'WeBan' : '江苏安全'}</span>
+                        <span class="task-status status-${t.status}">${statusText(t.status)}</span>
+                    </div>
+                    <div class="task-info">
+                        <div class="school">${escapeHtml(t.school)}</div>
+                        <div>账号: ${escapeHtml(t.username)}</div>
+                    </div>
+                    <div class="task-time">${t.created_at}${t.finished_at ? ' → ' + t.finished_at : ''}</div>
+                    <div class="task-actions" onclick="event.stopPropagation()">
+                        ${t.status === 'running' ? `<button class="btn btn-danger btn-sm" onclick="stopTask('${t.id}')">停止</button>` : ''}
+                        ${t.status !== 'running' ? `<button class="btn btn-default btn-sm" onclick="deleteTask('${t.id}')">删除</button>` : ''}
+                        <button class="btn btn-default btn-sm" onclick="downloadLogById('${t.id}')">日志</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function statusText(status) {
+            const map = { running: '运行中', finished: '已完成', failed: '失败', stopped: '已停止' };
+            return map[status] || status;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function selectTask(taskId) {
+            currentTaskId = taskId;
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            document.getElementById('outputTitle').textContent =
+                `${task.program === 'weban' ? 'WeBan' : '江苏安全'} - ${task.username} - 实时输出`;
+            document.getElementById('terminalPlaceholder').style.display = 'none';
+            document.getElementById('terminal').style.display = 'block';
+            document.getElementById('downloadLogBtn').style.display = 'inline-block';
+            document.getElementById('terminal').innerHTML = '';
+
+            // 关闭旧的 SSE
+            if (eventSource) { eventSource.close(); eventSource = null; }
+
+            // 先加载已有输出
+            loadExistingOutput(taskId);
+
+            // 如果任务还在运行，建立 SSE
+            if (task.status === 'running') {
+                setupSSE(taskId);
+            }
+
+            renderTaskList();
+        }
+
+        async function loadExistingOutput(taskId) {
+            try {
+                const resp = await fetch(`/api/tasks/${taskId}/output?from=0`);
+                const data = await resp.json();
+                if (data.output) {
+                    appendOutput(data.output);
+                }
+            } catch (e) {
+                console.error('加载输出失败', e);
+            }
+        }
+
+        function setupSSE(taskId) {
+            eventSource = new EventSource(`/api/stream/${taskId}`);
+            eventSource.onmessage = (e) => {
+                const text = e.data.replace(/\\n/g, '\n');
+                appendOutput(text);
+            };
+            eventSource.addEventListener('end', () => {
+                appendOutput('\n--- 任务已结束 ---\n');
+                eventSource.close();
+                eventSource = null;
+                loadTasks();
+            });
+            eventSource.addEventListener('error', () => {
+                eventSource.close();
+                eventSource = null;
+            });
+        }
+
+        function appendOutput(text) {
+            const terminal = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.textContent = text;
+            terminal.appendChild(line);
+            if (document.getElementById('autoScroll').checked) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('terminal').innerHTML = '';
+        }
+
+        async function stopTask(taskId) {
+            if (!confirm('确定要停止这个任务吗？')) return;
+            try {
+                await fetch(`/api/tasks/${taskId}/stop`, { method: 'POST' });
+                showToast('任务已停止', 'info');
+                loadTasks();
+            } catch (e) {
+                showToast('停止失败', 'error');
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!confirm('确定要删除这个任务及其日志吗？')) return;
+            try {
+                const resp = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    showToast('任务已删除', 'success');
+                    if (currentTaskId === taskId) {
+                        currentTaskId = null;
+                        document.getElementById('outputTitle').textContent = '实时终端输出';
+                        document.getElementById('terminal').style.display = 'none';
+                        document.getElementById('terminalPlaceholder').style.display = 'flex';
+                        document.getElementById('downloadLogBtn').style.display = 'none';
+                    }
+                    loadTasks();
+                } else {
+                    showToast(data.error || '删除失败', 'error');
+                }
+            } catch (e) {
+                showToast('删除失败', 'error');
+            }
+        }
+
+        function downloadLog() {
+            if (currentTaskId) downloadLogById(currentTaskId);
+        }
+
+        function downloadLogById(taskId) {
+            window.open(`/api/tasks/${taskId}/log`, '_blank');
+        }
+
+        // 回车启动
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startTask();
+        });
+
+        // 定时刷新任务列表
+        setInterval(loadTasks, 5000);
+
+        // 初始加载
+        loadTasks();
+    </script>
+</body>
+</html>

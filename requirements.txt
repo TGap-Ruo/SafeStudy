@@ -1,0 +1,7 @@
+flask==3.0.3
+requests==2.31.0
+# 说明：
+# 1. WeBan 使用编译好的二进制可执行文件（programs/weban/WeBan-linux-x64）
+# 2. 无需安装 nodriver、opencv、numpy、loguru 等 WeBan 的 Python 依赖
+# 3. 浏览器使用系统安装的 Google Chrome（/usr/bin/google-chrome-stable），无需 playwright
+# 4. 系统要求：Ubuntu 24.04+（GLIBC 2.38+），二进制文件在此系统上编译
