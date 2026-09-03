@@ -53,8 +53,14 @@ def _check_data_dict(res: dict, step: str) -> dict:
     return data
 
 
-def find_school_id(school_keyword: str) -> str:
-    """根据学校名称关键词查找 collegeId，精准匹配优先，否则取第一个匹配。"""
+def find_school_id(school_name: str) -> str:
+    """按完整学校名称精确匹配 collegeId。
+
+    平台中存在“南京理工大学”与“南京理工大学紫金学院”这类包含关系，
+    关键词模糊匹配可能选错学校，因此这里必须精确匹配平台返回的全名；
+    未精确命中时列出相近学校，方便用户复制完整名称后重试。
+    """
+    school_name = school_name.strip()
     try:
         school_list = _load_json(utils.getAllSchools("江苏省"))
     except SystemExit:
@@ -65,30 +71,27 @@ def find_school_id(school_keyword: str) -> str:
     if not isinstance(school_data, list):
         print(f"[错误] 学校列表未返回正常结果，平台响应: {json.dumps(school_list, ensure_ascii=False)}", flush=True)
         sys.exit(1)
-    matches = []
+    # 精确匹配完整学校名称
     for s in school_data:
-        if school_keyword in s["name"]:
-            matches.append(s)
-
-    if not matches:
-        print(f"[错误] 未找到包含 '{school_keyword}' 的学校", flush=True)
-        sys.exit(1)
-
-    # 精准匹配优先
-    for s in matches:
-        if s["name"] == school_keyword:
+        if str(s["name"]).strip() == school_name:
             print(f"[信息] 已匹配学校: {s['name']} (id: {s['id']})", flush=True)
             return s["id"]
 
-    # 否则取第一个
-    s = matches[0]
-    print(f"[信息] 模糊匹配学校: {s['name']} (id: {s['id']})", flush=True)
-    return s["id"]
+    # 未精确命中：列出相近学校，提示填写完整名称
+    similar = [str(s["name"]) for s in school_data if school_name in str(s["name"])]
+    print(f"[错误] 未找到与「{school_name}」完全一致的学校，请输入平台上的完整学校名称", flush=True)
+    if similar:
+        print(f"[提示] 名称相近的学校共 {len(similar)} 所，请完整填写其中之一：", flush=True)
+        for name in similar[:15]:
+            print(f"  - {name}", flush=True)
+    else:
+        print("[提示] 请确认该学校属于江苏省安全教育平台", flush=True)
+    sys.exit(1)
 
 
 def main():
     parser = argparse.ArgumentParser(description="江苏安全平台一键完成（非交互版）")
-    parser.add_argument("--school", required=True, help="学校名称（支持关键词）")
+    parser.add_argument("--school", required=True, help="学校名称（需与平台列表中的完整全称一致）")
     parser.add_argument("--username", required=True, help="账号")
     parser.add_argument("--password", required=True, help="密码")
     args = parser.parse_args()
