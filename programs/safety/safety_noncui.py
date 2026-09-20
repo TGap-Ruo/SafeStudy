@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """
-江苏安全平台 - 非交互式运行入口 (v1.0.7)
+江苏安全平台 - 非交互式运行入口 (v1.0.9)
 通过命令行参数传入学校、账号、密码，替代原 main.py 的交互式 input()。
 用法: python safety_noncui.py --school "学校名称" --username 账号 --password 密码
 
-同步上游 Scwizard/jiangsu-safety-platform-skip v1.0.7：
+同步上游 Scwizard/jiangsu-safety-platform-skip v1.0.9：
 - 创建考试前动态获取当前有效考试 id（旧考试 id 已过期，会抽到旧题库）
 - 课程完成 / 交卷需携带防作弊 token（由 create 响应 / unitTest/create 签发）
 - 答题时间过短（code 1006）自动等待重试
+- 未完成课程并行提交（默认 12 线程，可用环境变量 SAFETY_THREADS 覆盖）
+- 防作弊最短等待提升为 10 秒，交卷重试上限提升为 10 次
 """
 import argparse
 import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import utils
 
@@ -23,8 +26,17 @@ STATS = False
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
-# 防作弊：提交前的最短等待秒数
-WAIT_SECONDS = 1
+# 防作弊：提交前的最短等待秒数（v1.0.9 上游由 1 秒提升到 10 秒）
+WAIT_SECONDS = 10
+
+# 课程并行完成的线程数（越大越快，太大可能触发平台风控）
+try:
+    THREADS = max(1, int(os.environ.get("SAFETY_THREADS", "12")))
+except ValueError:
+    THREADS = 12
+
+# 交卷重试上限（答题时间过短 code 1006 时等待重试）
+TOTAL_RETRY = 10
 
 UNIT_TEST_URL = "http://wap.xiaoyuananquantong.com/guns-vip-main/wap/unitTest"
 COMPULSORY_URL = "http://wap.xiaoyuananquantong.com/guns-vip-main/wap/compulsory/list"
@@ -149,16 +161,30 @@ def main():
         if not c["isFinsh"]:
             unfinished.append(idx)
 
-    # 5. 完成未完成的课程（v1.0.7：需先签发防作弊会话 logId/token）
+    # 5. 完成未完成的课程（v1.0.9：需先签发防作弊会话 logId/token，并行提交）
     if unfinished:
-        for i in unfinished:
-            print(f"[信息] 正在完成: {table[i]['title']}（签发防作弊会话，等待 {WAIT_SECONDS} 秒后提交）...", flush=True)
+        def finish_course(i: int) -> str:
+            """单个线程完成一门课程：签发防作弊会话 -> 等待最短时长 -> 提交。"""
+            title = table[i]["title"]
+            print(f"[并行] 正在完成 {title}（等待 {WAIT_SECONDS} 秒后提交）...", flush=True)
             sess = utils.createUnitSession(user_id, table[i]["articleId"])
             payload = dict(table[i])
             payload["logId"] = sess["logId"]
             payload["token"] = sess["token"]
             time.sleep(WAIT_SECONDS)
             utils.session.post(UNIT_TEST_URL, data=payload).text
+            print(f"[并行] {title} 提交完成", flush=True)
+            return title
+
+        print(f"[信息] 共 {len(unfinished)} 门课程未完成，使用 {THREADS} 线程并行提交...", flush=True)
+        with ThreadPoolExecutor(max_workers=THREADS) as executor:
+            futures = {executor.submit(finish_course, i): i for i in unfinished}
+            for future in as_completed(futures):
+                i = futures[future]
+                try:
+                    future.result()
+                except Exception as e:  # noqa: BLE001 -- 单门课失败不影响其它课程
+                    print(f"[警告] {table[i]['title']} 完成时出错: {e}", flush=True)
         print("[信息] 课程学习完成，复查完成度:", flush=True)
         res = _load_json(utils.session.post(
             COMPULSORY_URL,
@@ -214,7 +240,7 @@ def main():
             print(f"[错误] 数据库读写错误: {e}", flush=True)
             sys.exit(1)
 
-    # 7. 提交考试（v1.0.7：携带 token；答题时间过短 code=1006 自动重试）
+    # 7. 提交考试（v1.0.9：携带 token；答题时间过短 code=1006 自动重试，上限 10 次）
     print(f"[信息] 答案已生成，等待最短答题时长 {WAIT_SECONDS} 秒后提交（防作弊校验）...", flush=True)
     time.sleep(WAIT_SECONDS)
 
@@ -222,9 +248,9 @@ def main():
         return _load_json(utils.imitateExam(exam_id, log_id, user_id, answers, token).text)
 
     res = do_submit()
-    for _ in range(6):
+    for attempt in range(TOTAL_RETRY):
         if res.get("code") == 1006:  # 答题时间过短
-            print("[提示] 答题时间过短（code 1006），等待 10 秒后重试...", flush=True)
+            print(f"[提示] 答题时间过短（code 1006），第 {attempt + 1}/{TOTAL_RETRY} 次重试，等待 10 秒...", flush=True)
             time.sleep(10)
             res = do_submit()
             continue
