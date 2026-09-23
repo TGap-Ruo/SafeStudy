@@ -10,6 +10,8 @@
 - 答题时间过短（code 1006）自动等待重试
 - 未完成课程并行提交（默认 12 线程，可用环境变量 SAFETY_THREADS 覆盖）
 - 防作弊最短等待提升为 10 秒，交卷重试上限提升为 10 次
+- 2026-09 平台按题量校验答题时长，考试最短等待提升为 255 秒（EXAM_WAIT_SECONDS）
+- 2026-09 平台要求答题前上报“课件已学完”（markArticleViewed），否则交卷报 500
 """
 import argparse
 import json
@@ -26,8 +28,11 @@ STATS = False
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
-# 防作弊：提交前的最短等待秒数（v1.0.9 上游由 1 秒提升到 10 秒）
+# 防作弊：课程提交前的最短等待秒数（上游由 1 秒提升到 10 秒）
 WAIT_SECONDS = 10
+
+# 考试最短答题时长：2026-09 平台按题量校验，50 题卷需 250 秒
+EXAM_WAIT_SECONDS = 255
 
 # 课程并行完成的线程数（越大越快，太大可能触发平台风控）
 try:
@@ -164,9 +169,11 @@ def main():
     # 5. 完成未完成的课程（v1.0.9：需先签发防作弊会话 logId/token，并行提交）
     if unfinished:
         def finish_course(i: int) -> str:
-            """单个线程完成一门课程：签发防作弊会话 -> 等待最短时长 -> 提交。"""
+            """单个线程完成一门课程：上报学习埋点 -> 签发会话 -> 等待 -> 提交。"""
             title = table[i]["title"]
             print(f"[并行] 正在完成 {title}（等待 {WAIT_SECONDS} 秒后提交）...", flush=True)
+            # 2026-09 平台要求先上报“课件已学完”，否则交卷报 500 请先完成本课程的学习后再作答
+            utils.markArticleViewed(user_id, table[i]["articleId"])
             sess = utils.createUnitSession(user_id, table[i]["articleId"])
             payload = dict(table[i])
             payload["logId"] = sess["logId"]
@@ -240,9 +247,9 @@ def main():
             print(f"[错误] 数据库读写错误: {e}", flush=True)
             sys.exit(1)
 
-    # 7. 提交考试（v1.0.9：携带 token；答题时间过短 code=1006 自动重试，上限 10 次）
-    print(f"[信息] 答案已生成，等待最短答题时长 {WAIT_SECONDS} 秒后提交（防作弊校验）...", flush=True)
-    time.sleep(WAIT_SECONDS)
+    # 7. 提交考试（携带 token；答题时间过短 code=1006 自动重试，上限 10 次）
+    print(f"[信息] 答案已生成，等待最短答题时长 {EXAM_WAIT_SECONDS} 秒后提交（防作弊校验）...", flush=True)
+    time.sleep(EXAM_WAIT_SECONDS)
 
     def do_submit() -> dict:
         return _load_json(utils.imitateExam(exam_id, log_id, user_id, answers, token).text)
