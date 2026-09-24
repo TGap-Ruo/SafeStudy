@@ -215,6 +215,19 @@ tail -f /www/wwwroot/weban-web/logs/chrome-cdp.log
 
 > 任务日志中的 `config.toml 不存在，正在下载远程模板...已创建空配置模板` 属于正常提示：账号由网页/命令行提供，无需理会模板中的账号字段。
 
+### 微伴题库（answer.json）
+
+WeBan 的题库来自仓库中的 `programs/weban/answer/answer.json`。**任务启动时会自动复制到该任务的数据目录**，WeBan 运行时按 `<数据目录>/answer.json` > `<数据目录>/answer/answer.json` > 二进制内嵌题库 的优先级加载，因此更新仓库里的题库即可生效，无需重新打包二进制。
+
+```bash
+# 更新题库（同步上游 hangone/WeBan 的 answer/answer.json）
+curl -fsSL https://raw.githubusercontent.com/hangone/WeBan/main/answer/answer.json \
+  -o programs/weban/answer/answer.json
+sudo bash /root/deploy.sh   # 部署到服务器并重启服务
+```
+
+> 任务运行时还会把该账号考试记录里的新题合并进任务目录下的题库副本（仅该任务生效，不会回写仓库）。
+
 ---
 
 ## 反向代理与访问密码（强烈建议）

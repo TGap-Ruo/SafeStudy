@@ -461,7 +461,23 @@ apt install -y python3.10-venv
 **A:** 当前二进制是 x86_64 版本。ARM 服务器（如树莓派、ARM 云服务器）需要下载 WeBan-linux-arm64 版本，替换 `programs/weban/WeBan-linux-x64` 文件，并修改 `task_manager.py` 中的二进制文件名。
 
 ### Q7: 如何更新 WeBan 程序？
-**A:** 下载新版本的 `WeBan-linux-x64` 二进制文件，替换 `programs/weban/` 目录下的旧文件，然后 `systemctl restart weban-web`。
+**A:** 分两部分：
+
+**① 题库（最常更新）**：WeBan 官方会持续更新题库，而二进制不会每次都重新发布。项目已把题库纳入仓库并在任务启动时自动注入任务数据目录，所以更新题库不需要重新打包二进制：
+```bash
+# 在项目目录执行，同步上游最新题库
+curl -fsSL https://raw.githubusercontent.com/hangone/WeBan/main/answer/answer.json \
+  -o programs/weban/answer/answer.json
+sudo bash /root/deploy.sh   # 或重新部署以同步到服务器
+```
+也可直接改服务器上 `/www/wwwroot/weban-web/programs/weban/answer/answer.json`，之后**无需重启服务**，新任务会自动使用新题库。
+
+**② 二进制（官方发布新版本时）**：从 https://github.com/hangone/WeBan/releases 下载新的 `WeBan-linux-x64`，替换 `programs/weban/WeBan-linux-x64`，然后：
+```bash
+chmod +x programs/weban/WeBan-linux-x64
+systemctl restart weban-web
+```
+可用 `shasum -a 256 programs/weban/WeBan-linux-x64` 与官方 release 文件比对确认版本。
 
 ---
 

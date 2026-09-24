@@ -5,6 +5,7 @@
 """
 import json
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -135,6 +136,28 @@ def get_task_output(task_id, start_line=0):
     return "".join(lines[start_line:]), len(lines)
 
 
+def seed_weban_answers(weban_dir, data_dir):
+    """把仓库内的题库复制到任务数据目录，供 WeBan 运行时优先加载。
+
+    WeBan 的题库加载优先级为：<数据目录>/answer.json > <数据目录>/answer/answer.json
+    > 二进制内嵌题库；由于每个任务使用全新的数据目录，若不注入，运行时会一直
+    使用二进制打包时的旧题库，仓库中更新过的 answer.json 不会生效。
+
+    :param weban_dir: programs/weban 目录（题库来源）
+    :param data_dir: 当前任务的数据目录（题库注入目标）
+    """
+    answer_src = weban_dir / "answer" / "answer.json"
+    if not answer_src.is_file():
+        return False
+    answer_dst_dir = data_dir / "answer"
+    answer_dst_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copyfile(answer_src, answer_dst_dir / "answer.json")
+    except OSError:
+        return False
+    return True
+
+
 def _build_command(program, school, username, password, task_id):
     """根据程序类型构建启动命令和工作目录。"""
     data_dir = LOGS_DIR / task_id
@@ -142,6 +165,7 @@ def _build_command(program, school, username, password, task_id):
 
     if program == "weban":
         weban_dir = PROGRAMS_DIR / "weban"
+        seed_weban_answers(weban_dir, data_dir)
         # 使用编译好的二进制可执行文件
         cmd = [
             str(WEBBAN_BINARY_PATH),
